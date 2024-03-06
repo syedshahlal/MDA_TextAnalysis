@@ -26,6 +26,46 @@ import copy
 import streamlit as st
 import matplotlib.pyplot as plt
 
+def main():
+    st.title("Fraud Detection in Financial Statements")
+    
+    # Data ingestion
+    df = data_ingestion()  # Load your DataFrame
+    
+    # Ensure df is available by checking its shape or similar
+    st.write(f"Data Loaded: {df.shape[0]} rows and {df.shape[1]} columns.")
+    
+    # Data preprocessing
+    df = data_preprocessing(df)
+    
+    # Define the minimum and maximum years for the slider, based on the preprocessed df
+    min_year, max_year = int(df['fyear'].min()), int(df['fyear'].max())
+    
+    # Sliders for selecting the training and testing period
+    train_start, train_end = st.slider("Select Training Period", min_value=min_year, max_value=max_year, value=(min_year, 2002), step=1)
+    test_start, test_end = st.slider("Select Testing Period", min_value=min_year, max_value=max_year, value=(2003, max_year), step=1)
+    
+    # Check for overlap between train and test periods
+    if train_end >= test_start:
+        st.error("Training period must end before the testing period starts.")
+    else:
+        if st.button('Split Data'):
+            # Splitting the data according to the selected periods
+            X_train_resampled, y_train_resampled, X_test, y_test = data_splitting(df, (train_start, train_end), (test_start, test_end))
+            st.success("Data Splitting Complete.")
+            
+            # Optionally display shapes of the datasets or other information
+            st.write(f"Training Data Shape: {X_train_resampled.shape}")
+            st.write(f"Testing Data Shape: {X_test.shape}")
+            
+            # Optional: data plotting to visualize the distribution or summary
+            total_misstatements, total_misstatements_training, total_misstatements_testing = data_plottings(df)
+            st.write(f"Total Misstatements: {total_misstatements}")
+            st.write(f"Training Period Misstatements: {total_misstatements_training}")
+            st.write(f"Testing Period Misstatements: {total_misstatements_testing}")
+
+
+
 
 def data_ingestion():
     # Load the dataset
@@ -90,3 +130,35 @@ def data_plottings(df):
     plt.show()
 
     return total_misstatements, total_misstatements_training, total_misstatements_testing
+
+def data_splitting(df, train_period, test_period):
+    # Split features into the specified groups
+    raw_items_28_financial_ratios_14 = ['act', 'ap', 'at', 'ceq', 'che', 'cogs', 'csho', 'dlc', 'dltis', 'dltt', 'dp', 'ib',
+                       'invt', 'ivao', 'ivst', 'lct', 'lt', 'ni', 'ppegt', 'pstk', 're', 'rect', 'sale', 'sstk',
+                       'txp', 'txt', 'xint','prcc_f', 'dch_wc', 'ch_rsst', 'dch_rec', 'dch_inv', 'soft_assets',
+                       'ch_cs', 'ch_cm', 'ch_roa', 'bm', 'dpi', 'reoa', 'EBIT', 'ch_fcf', 'issue']
+    
+    # Assign Train, Val, and Test periods
+    # train_period, test_period = (1990, 2002), (2003, 2019)
+
+    # loading data
+    train_data = df[(df['fyear'] >= train_period[0]) & (df['fyear'] <= train_period[1])]
+    test_data = df[(df['fyear'] >= test_period[0]) & (df['fyear'] <= test_period[1])]
+
+    # Extract features (X) and target variable (y) for training and testing
+    X_train = train_data[raw_items_28_financial_ratios_14]
+    y_train = train_data['misstate']
+
+    X_test = test_data[raw_items_28_financial_ratios_14]
+    y_test = test_data['misstate']
+
+    # Undersampling the data
+    rus = RandomUnderSampler()
+    X_train_resampled, y_train_resampled = rus.fit_resample(X_train, y_train)
+
+    return X_train_resampled, y_train_resampled, X_test, y_test
+
+
+# Run the app
+if __name__ == "__main__":
+    main()
