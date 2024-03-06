@@ -18,7 +18,7 @@ def get_requirements(file_path:str)->List[str]:
 
 
 setup(
-    name='FraudDetection Using SEC 10-K Filings',
+    name='FraudDetection',
     version='0.0.1',
     description='Based on the MD&A section of the 10-K filings, this project aims to predict whether a company has likely committed fraud or not.',
     author='Haimonti Dutta',
