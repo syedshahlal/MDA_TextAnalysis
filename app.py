@@ -36,7 +36,7 @@ def main():
     st.write(f"Data Loaded: {df.shape[0]} rows and {df.shape[1]} columns.")
     
     # Data preprocessing
-    df = data_preprocessing(df)
+    df = data_plotting(df)
     
     # Define the minimum and maximum years for the slider, based on the preprocessed df
     min_year, max_year = int(df['fyear'].min()), int(df['fyear'].max())
@@ -103,7 +103,7 @@ def data_preprocessing(df):
 
     return df
 
-def data_plottings(df):
+def data_plotting(df):
     # Filter the DataFrame for years from 1990 to 2019
     filtered_df = df[(df['fyear'] >= 1990) & (df['fyear'] <= 2019)]
     training_df = df[(df['fyear'] >= 1990) & (df['fyear'] <= 2002)]
