@@ -6,5 +6,6 @@ matplotlib
 imblearn
 torch
 lxml
+statsmodels
 streamlit
 -e .
