@@ -28,7 +28,7 @@ def main():
     df_filtered = df[(df['fyear'] >= 1990) & (df['fyear'] <= 2019)]
     
     st.header("1. Select Cutoff Year for Training and Testing Data")
-    cutoff_year = st.slider("Cutoff Year", min_value=1990, max_value=2019, value=2002, step=1, label_visibility="collapsed")
+    cutoff_year = st.slider("Cutoff Year", min_value=1990, max_value=2019, value=2002, step=1, key="cutoff_year_slider")
 
     if st.button('Confirm Cutoff Year'):
         st.markdown("---")
@@ -50,35 +50,43 @@ def main():
         resampling_strategy = st.radio(
             "Resampling Strategy",
             ('Random Under Sampling (RUS)', 'Random Over Sampling (ROS)'),
-            label_visibility="collapsed"
+            key="resampling_strategy_radio"
         )
         st.markdown("---")
 
         # Proceed with resampling based on the selected strategy
-        X_train_resampled, y_train_resampled, X_test, y_test = data_resampling(df, cutoff_year, resampling_strategy)
-        
-        # Store in session state for persistence
-        st.session_state['X_test'] = X_test
-        st.session_state['y_test'] = y_test
+        if st.button('Apply Resampling'):
+            X_train_resampled, y_train_resampled, X_test, y_test = data_resampling(df_filtered, cutoff_year, resampling_strategy)
+            
+            # Store in session state for persistence
+            st.session_state['X_test'] = X_test
+            st.session_state['y_test'] = y_test
 
-        # Check if the dataset is balanced after resampling
-        is_balanced_after = check_balance(y_train_resampled)
-        balance_message_after = "balanced" if is_balanced_after else "imbalanced"
-        st.write(f"The training dataset after resampling is {balance_message_after}.")
-        
-        st.write(f"The resampled training dataset contains {X_train_resampled.shape[0]} samples.")
+            # Check if the dataset is balanced after resampling
+            is_balanced_after = check_balance(y_train_resampled)
+            balance_message_after = "balanced" if is_balanced_after else "imbalanced"
+            st.write(f"The training dataset after resampling is {balance_message_after}.")
+            
+            st.write(f"The resampled training dataset contains {X_train_resampled.shape[0]} samples.")
 
-        st.header("3. Financial Ratios and Raw Financial Items")
-        st.write("We will train three models using different sets of features:")
-        st.write("1. All 42 features")
-        st.write("2. 28 raw financial items")
-        st.write("3. 14 financial ratios")
-        st.markdown("---")
+            st.header("3. Financial Ratios and Raw Financial Items")
+            st.write("We will train three models using different sets of features:")
+            st.write("1. All 42 features")
+            st.write("2. 28 raw financial items")
+            st.write("3. 14 financial ratios")
+            st.markdown("---")
 
-        # Split the resampled data into 42, 28, and 14 features
-        merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14, X_train_resampled, y_train_resampled, X_test, y_test = fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test)
+            selected_model = st.radio("Select Model", ('All 42 Features', '28 Raw Financial Items', '14 Financial Ratios'), key="model_selection")
 
-        # Save the datasets to CSV files
+            if selected_model == 'All 42 Features':
+                st.subheader('3.1. Model 1: All 42 Features')
+                st.write("We will train a model using all 42 features.")
+                st.write("This model will be trained using the resampled training dataset and evaluated using the testing dataset.")
+
+                # Split the resampled data into 42, 28, and 14 features
+                merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14, X_train_resampled, y_train_resampled, X_test, y_test = fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test)
+
+                # Save the datasets to CSV files
         
 @st.cache_data
 def data_ingestion():
