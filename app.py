@@ -21,29 +21,73 @@ import streamlit as st
 import matplotlib.pyplot as plt
 
 def main():
-    # Title of the app
     st.title("Fraud Detection in Financial Statements")
     
-    # Load and preprocess the dataset
     df = data_ingestion()
     df = data_preprocessing(df)
-    
-    # Filter the DataFrame for years from 1990 to 2019
     df_filtered = df[(df['fyear'] >= 1990) & (df['fyear'] <= 2019)]
     
-    # Display the slider for selecting the cutoff year
-    cutoff_year = st.slider("Select Cutoff Year for Training and Testing Data", min_value=1990, max_value=2019, value=2002, step=1)
-    
-    # Plot the number of misstatements by fiscal year and pie chart for misstatements distribution
-    plot_misstatements(df_filtered, cutoff_year)
+    st.header("1. Select Cutoff Year for Training and Testing Data")
+    cutoff_year = st.slider("Cutoff Year", min_value=1990, max_value=2019, value=2002, step=1, label_visibility="collapsed")
 
+    if st.button('Confirm Cutoff Year'):
+        st.markdown("---")
+        plot_misstatements(df_filtered, cutoff_year)
 
+        # Split data based on the selected cutoff year
+        train_df = df_filtered[df_filtered['fyear'] <= cutoff_year]
+        test_df = df_filtered[df_filtered['fyear'] > cutoff_year]
+        
+        X_train, y_train = train_df.drop(['misstate'], axis=1), train_df['misstate']
+        X_test, y_test = test_df.drop(['misstate'], axis=1), test_df['misstate']
+
+        # Check if the dataset is balanced before resampling
+        is_balanced_before = check_balance(y_train)
+        balance_message_before = "balanced" if is_balanced_before else "imbalanced"
+        st.write(f"The training dataset before resampling is {balance_message_before}.")
+
+        st.header("2. Select the Resampling Strategy")
+        resampling_strategy = st.radio(
+            "Resampling Strategy",
+            ('Random Under Sampling (RUS)', 'Random Over Sampling (ROS)'),
+            label_visibility="collapsed"
+        )
+        st.markdown("---")
+
+        # Proceed with resampling based on the selected strategy
+        X_train_resampled, y_train_resampled, X_test, y_test = data_resampling(df, cutoff_year, resampling_strategy)
+        
+        # Store in session state for persistence
+        st.session_state['X_test'] = X_test
+        st.session_state['y_test'] = y_test
+
+        # Check if the dataset is balanced after resampling
+        is_balanced_after = check_balance(y_train_resampled)
+        balance_message_after = "balanced" if is_balanced_after else "imbalanced"
+        st.write(f"The training dataset after resampling is {balance_message_after}.")
+        
+        st.write(f"The resampled training dataset contains {X_train_resampled.shape[0]} samples.")
+
+        st.header("3. Financial Ratios and Raw Financial Items")
+        st.write("We will train three models using different sets of features:")
+        st.write("1. All 42 features")
+        st.write("2. 28 raw financial items")
+        st.write("3. 14 financial ratios")
+        st.markdown("---")
+
+        # Split the resampled data into 42, 28, and 14 features
+        merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14, X_train_resampled, y_train_resampled, X_test, y_test = fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test)
+
+        # Save the datasets to CSV files
+        
+@st.cache_data
 def data_ingestion():
     # Load the dataset
     url = "https://media.githubusercontent.com/media/syedshahlal/MDA_TextAnalysis/main/dataset/merged_compustat_and_labels.csv"
     df = pd.read_csv(url)
     return df
 
+@st.cache_data
 def data_preprocessing(df):
     # preprocess the dataset
     # Step 1: fill missing values with 0
@@ -74,6 +118,7 @@ def data_preprocessing(df):
 
     return df
 
+@st.cache_data
 def plot_misstatements(df, cutoff_year):
     # Ensure df is filtered for years from 1990 to 2019
     filtered_df = df[(df['fyear'] >= 1990) & (df['fyear'] <= 2019)]
@@ -132,72 +177,76 @@ def plot_misstatements(df, cutoff_year):
 
     return total_misstatements, total_misstatements_training, total_misstatements_testing
 
-# def data_splitting(df, train_period, test_period, cutoff_year):
-#     # Split features into the specified groups
-#     raw_items_28_financial_ratios_14 = ['act', 'ap', 'at', 'ceq', 'che', 'cogs', 'csho', 'dlc', 'dltis', 'dltt', 'dp', 'ib',
-#                        'invt', 'ivao', 'ivst', 'lct', 'lt', 'ni', 'ppegt', 'pstk', 're', 'rect', 'sale', 'sstk',
-#                        'txp', 'txt', 'xint','prcc_f', 'dch_wc', 'ch_rsst', 'dch_rec', 'dch_inv', 'soft_assets',
-#                        'ch_cs', 'ch_cm', 'ch_roa', 'bm', 'dpi', 'reoa', 'EBIT', 'ch_fcf', 'issue']
+@st.cache_data
+def data_resampling(df, cutoff_year, resampling_strategy):
+    """
+    Splits the data based on a cutoff year and applies the selected resampling strategy to balance the training set.
+    """
+    features = ['act', 'ap', 'at', 'ceq', 'che', 'cogs', 'csho', 'dlc', 'dltis', 'dltt', 'dp', 'ib',
+                'invt', 'ivao', 'ivst', 'lct', 'lt', 'ni', 'ppegt', 'pstk', 're', 'rect', 'sale', 'sstk',
+                'txp', 'txt', 'xint', 'prcc_f', 'dch_wc', 'ch_rsst', 'dch_rec', 'dch_inv', 'soft_assets',
+                'ch_cs', 'ch_cm', 'ch_roa', 'bm', 'dpi', 'reoa', 'EBIT', 'ch_fcf', 'issue']
     
-#     # Assign Train, Val, and Test periods
-#     # train_period, test_period = (1990, 2002), (2003, 2019)
+    train_data = df[df['fyear'] <= cutoff_year]
+    test_data = df[df['fyear'] > cutoff_year]
 
-#     # loading data
-#     train_data = df[df['fyear'] <= cutoff_year]
-#     test_data = df[df['fyear'] > cutoff_year]
+    X_train = train_data[features]
+    y_train = train_data['misstate']
+    X_test = test_data[features]
+    y_test = test_data['misstate']
 
-#     # Extract features (X) and target variable (y) for training and testing
-#     X_train = train_data[raw_items_28_financial_ratios_14]
-#     y_train = train_data['misstate']
+    if resampling_strategy == 'Random Under Sampling (RUS)':
+        sampler = RandomUnderSampler()
+    elif resampling_strategy == 'Random Over Sampling (ROS)':
+        sampler = RandomOverSampler()
 
-#     X_test = test_data[raw_items_28_financial_ratios_14]
-#     y_test = test_data['misstate']
+    X_train_resampled, y_train_resampled = sampler.fit_resample(X_train, y_train)
 
-#     # Undersampling the data
-#     rus = RandomUnderSampler()
-#     X_train_resampled, y_train_resampled = rus.fit_resample(X_train, y_train)
+    return X_train_resampled, y_train_resampled, X_test, y_test
 
-#     return X_train_resampled, y_train_resampled, X_test, y_test
+def check_balance(y_train_resampled):
+    """
+    Check if the dataset is balanced based on the resampled training labels.
+    Returns True if balanced, False otherwise.
+    """
+    # Count the occurrences of each class in the resampled training dataset
+    class_counts = pd.Series(y_train_resampled).value_counts()
+    
+    # Determine if the dataset is balanced (assuming a threshold for "balanced" at 80/20 distribution)
+    is_balanced = class_counts.min() / class_counts.max() >= 0.8
+    
+    return is_balanced
 
-# def fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test):
-#     financial_ratios_14 = ['dch_wc', 'ch_rsst', 'dch_rec', 'dch_inv', 'soft_assets', 'ch_cs', 'ch_cm', 'ch_roa', 'bm',
-#                           'dpi', 'reoa', 'EBIT', 'ch_fcf', 'issue']
+def fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test):
+    financial_ratios_14 = ['dch_wc', 'ch_rsst', 'dch_rec', 'dch_inv', 'soft_assets', 'ch_cs', 'ch_cm', 'ch_roa', 'bm',
+                          'dpi', 'reoa', 'EBIT', 'ch_fcf', 'issue']
 
-#     raw_financial_items_28 = ['act', 'ap', 'at', 'ceq', 'che', 'cogs', 'csho', 'dlc', 'dltis', 'dltt', 'dp', 'ib',
-#                         'invt', 'ivao', 'ivst', 'lct', 'lt', 'ni', 'ppegt', 'pstk', 're', 'rect', 'sale', 'sstk',
-#                         'txp', 'txt', 'xint', 'prcc_f']
+    raw_financial_items_28 = ['act', 'ap', 'at', 'ceq', 'che', 'cogs', 'csho', 'dlc', 'dltis', 'dltt', 'dp', 'ib',
+                        'invt', 'ivao', 'ivst', 'lct', 'lt', 'ni', 'ppegt', 'pstk', 're', 'rect', 'sale', 'sstk',
+                        'txp', 'txt', 'xint', 'prcc_f']
 
-#     X_train_resampled_28 = X_train_resampled.loc[:, raw_financial_items_28]
-#     y_train_resampled_28 = y_train_resampled
+    X_train_resampled_28 = X_train_resampled.loc[:, raw_financial_items_28]
+    y_train_resampled_28 = y_train_resampled
 
-#     X_test_28 = X_test.loc[:, raw_financial_items_28]
-#     y_test_28 = y_test
+    X_test_28 = X_test.loc[:, raw_financial_items_28]
+    y_test_28 = y_test
 
-#     X_train_resampled_14 = X_train_resampled.loc[:, financial_ratios_14]
-#     y_train_resampled_14 = y_train_resampled
+    X_train_resampled_14 = X_train_resampled.loc[:, financial_ratios_14]
+    y_train_resampled_14 = y_train_resampled
 
-#     X_test_14 = X_test.loc[:, financial_ratios_14]
-#     y_test_14 = y_test
+    X_test_14 = X_test.loc[:, financial_ratios_14]
+    y_test_14 = y_test
 
-#     merged_train_data = pd.concat([X_train_resampled, y_train_resampled], axis = 1)
-#     merged_test_data = pd.concat([X_test, y_test], axis = 1)
+    merged_train_data = pd.concat([X_train_resampled, y_train_resampled], axis = 1)
+    merged_test_data = pd.concat([X_test, y_test], axis = 1)
 
-#     merged_train_data_28 = pd.concat([X_train_resampled_28, y_train_resampled_28], axis = 1)
-#     merged_test_data_28 = pd.concat([X_test_28, y_test_28], axis = 1)
+    merged_train_data_28 = pd.concat([X_train_resampled_28, y_train_resampled_28], axis = 1)
+    merged_test_data_28 = pd.concat([X_test_28, y_test_28], axis = 1)
 
-#     merged_train_data_14 = pd.concat([X_train_resampled_14, y_train_resampled_14], axis = 1)
-#     merged_test_data_14 = pd.concat([X_test_14, y_test_14], axis = 1)
+    merged_train_data_14 = pd.concat([X_train_resampled_14, y_train_resampled_14], axis = 1)
+    merged_test_data_14 = pd.concat([X_test_14, y_test_14], axis = 1)
 
-#     # merged_train_data.to_csv('/dataset/merged_train_data.csv', index=False)
-#     # merged_test_data.to_csv('/dataset/merged_test_data.csv', index=False)
-
-#     # merged_train_data_28.to_csv('/dataset/merged_train_data_28.csv', index=False)
-#     # merged_test_data_28.to_csv('/dataset/merged_test_data_28.csv', index=False)
-
-#     # merged_train_data_14.to_csv('/dataset/merged_train_data_14.csv', index=False)
-#     # merged_test_data_14.to_csv('/dataset/merged_test_data_14.csv', index=False)
-
-#     return merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14
+    return merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14, X_train_resampled, y_train_resampled, X_test, y_test
 
 # class CSVDataset(Dataset):
 #     #Constructor for initially loading
