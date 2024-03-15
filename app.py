@@ -1,27 +1,8 @@
-import numpy as np
-import pandas as pd
-import torch
-from sklearn.preprocessing import MinMaxScaler
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.over_sampling import RandomOverSampler
-from sklearn.metrics import roc_auc_score
-from torch.utils.data import Dataset, DataLoader
-from torch import Tensor
-from torch.nn import Linear, ReLU, Tanh, Sigmoid, Module, BCELoss
-from torch.optim import SGD, Adam, lr_scheduler
-import torch.nn as nn
-from torch.nn.init import kaiming_uniform_, xavier_uniform_
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
-import statsmodels.api as sm
-from statsmodels.discrete.discrete_model import Logit, Probit
-import time
-import copy
 import streamlit as st
-import matplotlib.pyplot as plt
+from data_ingestion import data_ingestion
+from data_preprocessing import data_preprocessing
 
-# Set the random seed for reproducibility
-torch.manual_seed(0)
+
 def main():
     st.title("Fraud Detection in Financial Statements")
 
@@ -248,235 +229,247 @@ def fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test):
     X_test_14 = X_test.loc[:, financial_ratios_14]
     y_test_14 = y_test
 
-    merged_train_data = pd.concat([X_train_resampled, y_train_resampled], axis = 1)
-    merged_test_data = pd.concat([X_test, y_test], axis = 1)
+    merged_train_data = pd.concat([X_train_resampled, y_train_resampled], axis=1)
+    merged_test_data = pd.concat([X_test, y_test], axis=1)
 
-    merged_train_data_28 = pd.concat([X_train_resampled_28, y_train_resampled_28], axis = 1)
-    merged_test_data_28 = pd.concat([X_test_28, y_test_28], axis = 1)
+    merged_train_data_28 = pd.concat([X_train_resampled_28, y_train_resampled_28], axis=1)
+    merged_test_data_28 = pd.concat([X_test_28, y_test_28], axis=1)
 
-    merged_train_data_14 = pd.concat([X_train_resampled_14, y_train_resampled_14], axis = 1)
-    merged_test_data_14 = pd.concat([X_test_14, y_test_14], axis = 1)
+    merged_train_data_14 = pd.concat([X_train_resampled_14, y_train_resampled_14], axis=1)
+    merged_test_data_14 = pd.concat([X_test_14, y_test_14], axis=1)
 
-    return merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14, X_train_resampled, y_train_resampled, X_test, y_test
+    directory = r"D:\University\UB\Research_SEC\MDA_TextAnalysis\dataset"
 
-# class CSVDataset(Dataset):
-#     #Constructor for initially loading
-#     def __init__(self, path):
-#         df = read_csv(path, header=0)
-#         self.X = df.values[0:, :-1]
-#         self.y = df.values[0:, -1]
-#         self.X = self.X.astype('float32')
-#         self.y = self.y.astype('float32')
-#         self.y = self.y.reshape((len(self.y), 1))
+    # Save CSV files
+    merged_train_data.to_csv(os.path.join(directory, 'merged_train_data.csv'), index=False)
+    merged_test_data.to_csv(os.path.join(directory, 'merged_test_data.csv'), index=False)
+    merged_train_data_28.to_csv(os.path.join(directory, 'merged_train_data_28.csv'), index=False)
+    merged_test_data_28.to_csv(os.path.join(directory, 'merged_test_data_28.csv'), index=False)
+    merged_train_data_14.to_csv(os.path.join(directory, 'merged_train_data_14.csv'), index=False)
+    merged_test_data_14.to_csv(os.path.join(directory, 'merged_test_data_14.csv'), index=False)
 
-#         print(self.X.shape)
-#         print(self.y.shape)
-
-#     # Get the number of rows in the dataset
-#     def __len__(self):
-#         return len(self.X)
-#     # Get a row at an index
-#     def __getitem__(self,idx):
-#         return [self.X[idx], self.y[idx]]
-
-#     def prepare_train_dataset(path):
-#         train = CSVDataset(path)
-#         train_dl = DataLoader(train, batch_size=1662, shuffle=True)
-#         return train_dl
-
-#     def prepare_test_dataset(path):
-#         test = CSVDataset(path)
-#         test_dl = DataLoader(test, batch_size=1024, shuffle=False)
-#         return test_dl
+    return (merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, 
+            merged_train_data_14, merged_test_data_14, X_train_resampled, y_train_resampled, X_test, y_test)
 
 
-#     train_dl_42 = prepare_train_dataset('/dataset/merged_train_data.csv')
-#     test_dl_42 = prepare_test_dataset('/dataset/merged_test_data.csv')
+class CSVDataset(Dataset):
+    #Constructor for initially loading
+    def __init__(self, path):
+        df = pd.read_csv(path, header=0)
+        self.X = df.values[0:, :-1]
+        self.y = df.values[0:, -1]
+        self.X = self.X.astype('float32')
+        self.y = self.y.astype('float32')
+        self.y = self.y.reshape((len(self.y), 1))
 
-#     train_dl_28 = prepare_train_dataset('/dataset/merged_train_data_28.csv')
-#     test_dl_28 = prepare_test_dataset('/dataset/merged_test_data_28.csv')
+        print(self.X.shape)
+        print(self.y.shape)
 
-#     train_dl_14 = prepare_train_dataset('/dataset/merged_train_data_14.csv')
-#     test_dl_14 = prepare_test_dataset('/dataset/merged_test_data_14.csv')
+    # Get the number of rows in the dataset
+    def __len__(self):
+        return len(self.X)
+    # Get a row at an index
+    def __getitem__(self,idx):
+        return [self.X[idx], self.y[idx]]
 
-# class FraudDetectionMLP(Module):
-#     def __init__(self, n_inputs):
-#         super(FraudDetectionMLP, self).__init__()
-#         # Input layer
-#         self.hidden1 = Linear(n_inputs, 57)
-#         kaiming_uniform_(self.hidden1.weight, nonlinearity='relu')
-#         self.act1 = ReLU()
-#         # Second (hidden) layer
-#         self.hidden2 = Linear(57, 22)
-#         kaiming_uniform_(self.hidden2.weight, nonlinearity='relu')
-#         self.act2 = ReLU()
-#         # Third (hidden) layer
-#         self.hidden3 = Linear(22, 107)
-#         kaiming_uniform_(self.hidden3.weight, nonlinearity='relu')
-#         self.act3 = ReLU()
-#         # Fourth (hidden) layer
-#         self.hidden4 = Linear(107, 202)
-#         kaiming_uniform_(self.hidden4.weight, nonlinearity='relu')
-#         self.act4 = Sigmoid()
-#         # Fifth (hidden) layer
-#         self.hidden5 = Linear(202, 162)
-#         kaiming_uniform_(self.hidden5.weight, nonlinearity='relu')
-#         self.act5 = Sigmoid()
-#         # Output layer
-#         self.hidden6 = Linear(162,1)
-#         xavier_uniform_(self.hidden6.weight)
-#         self.act6 = Sigmoid()
+def prepare_train_dataset(path):
+    train = CSVDataset(path)
+    train_dl = DataLoader(train, batch_size=1662, shuffle=True)
+    return train_dl
 
-#     def forward(self, X):
-#         # Input to the first hidden layer
-#         X = self.hidden1(X)
-#         X = self.act1(X)
-#         # Second hidden layer
-#         X = self.hidden2(X)
-#         X = self.act2(X)
-#         # Third hidden layer
-#         X = self.hidden3(X)
-#         X = self.act3(X)
-#         # Fourth hidden layer
-#         X = self.hidden4(X)
-#         X = self.act4(X)
-#         # Fifth hidden layer
-#         X = self.hidden5(X)
-#         X = self.act5(X)
-#         # Output layer
-#         X = self.hidden6(X)
-#         X = self.act6(X)
-#         return X
+def prepare_test_dataset(path):
+    test = CSVDataset(path)
+    test_dl = DataLoader(test, batch_size=1024, shuffle=False)
+    return test_dl
+
+
+train_dl_42 = prepare_train_dataset('merged_train_data.csv')
+test_dl_42 = prepare_test_dataset('merged_test_data.csv')
+
+train_dl_28 = prepare_train_dataset('merged_train_data_28.csv')
+test_dl_28 = prepare_test_dataset('merged_test_data_28.csv')
+
+train_dl_14 = prepare_train_dataset('merged_train_data_14.csv')
+test_dl_14 = prepare_test_dataset('merged_test_data_14.csv')
+
+class FraudDetectionMLP(Module):
+    def __init__(self, n_inputs):
+        super(FraudDetectionMLP, self).__init__()
+        # Input layer
+        self.hidden1 = Linear(n_inputs, 57)
+        kaiming_uniform_(self.hidden1.weight, nonlinearity='relu')
+        self.act1 = ReLU()
+        # Second (hidden) layer
+        self.hidden2 = Linear(57, 22)
+        kaiming_uniform_(self.hidden2.weight, nonlinearity='relu')
+        self.act2 = ReLU()
+        # Third (hidden) layer
+        self.hidden3 = Linear(22, 107)
+        kaiming_uniform_(self.hidden3.weight, nonlinearity='relu')
+        self.act3 = ReLU()
+        # Fourth (hidden) layer
+        self.hidden4 = Linear(107, 202)
+        kaiming_uniform_(self.hidden4.weight, nonlinearity='relu')
+        self.act4 = Sigmoid()
+        # Fifth (hidden) layer
+        self.hidden5 = Linear(202, 162)
+        kaiming_uniform_(self.hidden5.weight, nonlinearity='relu')
+        self.act5 = Sigmoid()
+        # Output layer
+        self.hidden6 = Linear(162,1)
+        xavier_uniform_(self.hidden6.weight)
+        self.act6 = Sigmoid()
+
+    def forward(self, X):
+        # Input to the first hidden layer
+        X = self.hidden1(X)
+        X = self.act1(X)
+        # Second hidden layer
+        X = self.hidden2(X)
+        X = self.act2(X)
+        # Third hidden layer
+        X = self.hidden3(X)
+        X = self.act3(X)
+        # Fourth hidden layer
+        X = self.hidden4(X)
+        X = self.act4(X)
+        # Fifth hidden layer
+        X = self.hidden5(X)
+        X = self.act5(X)
+        # Output layer
+        X = self.hidden6(X)
+        X = self.act6(X)
+        return X
     
-# def train_model(model, train_dl, num_epochs):
+def train_model(model, train_dl, num_epochs):
 
-#     # Define loss function and optimizer
-#     criterion = torch.nn.BCELoss()
-#     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    # Define loss function and optimizer
+    criterion = torch.nn.BCELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
-#     for epoch in range(num_epochs):
-#         model.train()
-#         running_loss = 0.0
-#         for inputs, labels in train_dl:
-#             optimizer.zero_grad()
-#             outputs = model(inputs.float())
-#             labels = labels.float()
-#             loss = criterion(outputs, labels)
-#             loss.backward()
-#             optimizer.step()
-#             running_loss += loss.item() * inputs.size(0)
-#         epoch_loss = running_loss / len(train_dl.dataset)
+    for epoch in range(num_epochs):
+        model.train()
+        running_loss = 0.0
+        for inputs, labels in train_dl:
+            optimizer.zero_grad()
+            outputs = model(inputs.float())
+            labels = labels.float()
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item() * inputs.size(0)
+        epoch_loss = running_loss / len(train_dl.dataset)
 
-# def evaluate_model(model, test_dl):
-#     model.eval()
-#     y_true = []
-#     y_pred = []
-#     with torch.no_grad():
-#         for inputs, labels in test_dl:
-#             outputs = model(inputs.float())
-#             y_true.extend(labels.numpy())
-#             y_pred.extend(outputs.numpy().flatten())
-#     auc = roc_auc_score(y_true, y_pred)
-#     return auc
+def evaluate_model(model, test_dl):
+    model.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for inputs, labels in test_dl:
+            outputs = model(inputs.float())
+            y_true.extend(labels.numpy())
+            y_pred.extend(outputs.numpy().flatten())
+    auc = roc_auc_score(y_true, y_pred)
+    return auc
 
-# model = FraudDetectionMLP(42)
-# train_model(model, train_dl_42, num_epochs=150)
-# evaluate_model(model, test_dl_42)
+model = FraudDetectionMLP(42)
+train_model(model, train_dl_42, num_epochs=150)
+evaluate_model(model, test_dl_42)
 
-# auc_values = []
+auc_values = []
 
-# # Perform 10 training runs
-# for i in range(10):
-#     model_42 = FraudDetectionMLP(42)
-#     train_model(model_42, train_dl_42, num_epochs=150)
+# Perform 10 training runs
+for i in range(10):
+    model_42 = FraudDetectionMLP(42)
+    train_model(model_42, train_dl_42, num_epochs=150)
 
-#     # Evaluate the model
-#     model_42.eval()
-#     y_true = []
-#     y_pred = []
-#     with torch.no_grad():
-#         for inputs, labels in test_dl_42:
-#             outputs = model_42(inputs.float())
-#             y_true.extend(labels.numpy())
-#             y_pred.extend(outputs.numpy().flatten())
-#     auc = roc_auc_score(y_true, y_pred)
-#     auc_values.append(auc)  # Append AUC to the list
-#     print(f"Run {i+1}: AUC = {auc:.4f}")
+    # Evaluate the model
+    model_42.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for inputs, labels in test_dl_42:
+            outputs = model_42(inputs.float())
+            y_true.extend(labels.numpy())
+            y_pred.extend(outputs.numpy().flatten())
+    auc = roc_auc_score(y_true, y_pred)
+    auc_values.append(auc)  # Append AUC to the list
+    print(f"Run {i+1}: AUC = {auc:.4f}")
 
-# # Calculate the average AUC
-# average_auc = np.mean(auc_values)
-# print(f"\nAverage AUC: {average_auc:.4f}")
+# Calculate the average AUC
+average_auc = np.mean(auc_values)
+print(f"\nAverage AUC: {average_auc:.4f}")
 
-# # Calculate the std AUC
-# auc_std_dev = np.std(auc_values)
-# print(f"Standard Deviation of AUC: {auc_std_dev:.4f}")
+# Calculate the std AUC
+auc_std_dev = np.std(auc_values)
+print(f"Standard Deviation of AUC: {auc_std_dev:.4f}")
 
-# # 28 raw financial items model
-# model_28 = FraudDetectionMLP(28)
+# 28 raw financial items model
+model_28 = FraudDetectionMLP(28)
 
-# train_model(model_28, train_dl_28, num_epochs=150)
-# evaluate_model(model_28, test_dl_28)
+train_model(model_28, train_dl_28, num_epochs=150)
+evaluate_model(model_28, test_dl_28)
 
-# auc_values_28 = []
+auc_values_28 = []
 
-# # Perform 10 training runs
-# for i in range(10):
-#     model_28 = FraudDetectionMLP(28)
-#     train_model(model_28, train_dl_28, num_epochs=150)
+# Perform 10 training runs
+for i in range(10):
+    model_28 = FraudDetectionMLP(28)
+    train_model(model_28, train_dl_28, num_epochs=150)
 
-#     # Evaluate the model
-#     model_28.eval()
-#     y_true = []
-#     y_pred = []
-#     with torch.no_grad():
-#         for inputs, labels in test_dl_28:
-#             outputs = model_28(inputs.float())
-#             y_true.extend(labels.numpy())
-#             y_pred.extend(outputs.numpy().flatten())
-#     auc_28 = roc_auc_score(y_true, y_pred)
-#     auc_values_28.append(auc_28)  # Append AUC to the list
-#     print(f"Run {i+1}: AUC = {auc_28:.4f}")
+    # Evaluate the model
+    model_28.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for inputs, labels in test_dl_28:
+            outputs = model_28(inputs.float())
+            y_true.extend(labels.numpy())
+            y_pred.extend(outputs.numpy().flatten())
+    auc_28 = roc_auc_score(y_true, y_pred)
+    auc_values_28.append(auc_28)  # Append AUC to the list
+    print(f"Run {i+1}: AUC = {auc_28:.4f}")
 
-# # Calculate the average AUC
-# average_auc_28 = np.mean(auc_values_28)
-# print(f"\nAverage AUC: {average_auc_28:.4f}")
+# Calculate the average AUC
+average_auc_28 = np.mean(auc_values_28)
+print(f"\nAverage AUC: {average_auc_28:.4f}")
 
-# # Calculate the std AUC
-# auc_std_dev_28 = np.std(auc_values_28)
-# print(f"Standard Deviation of AUC: {auc_std_dev_28:.4f}")
+# Calculate the std AUC
+auc_std_dev_28 = np.std(auc_values_28)
+print(f"Standard Deviation of AUC: {auc_std_dev_28:.4f}")
 
-# # 14 financial ratios model
-# model_14 = FraudDetectionMLP(14)
+# 14 financial ratios model
+model_14 = FraudDetectionMLP(14)
 
-# train_model(model_14, train_dl_14, num_epochs=150)
-# evaluate_model(model_14, test_dl_14)
+train_model(model_14, train_dl_14, num_epochs=150)
+evaluate_model(model_14, test_dl_14)
 
-# auc_values_14 = []
+auc_values_14 = []
 
-# # Perform 10 training runs
-# for i in range(10):
-#     model_14 = FraudDetectionMLP(14)
-#     train_model(model_14, train_dl_14, num_epochs=150)
+# Perform 10 training runs
+for i in range(10):
+    model_14 = FraudDetectionMLP(14)
+    train_model(model_14, train_dl_14, num_epochs=150)
 
-#     # Evaluate the model
-#     model_14.eval()
-#     y_true = []
-#     y_pred = []
-#     with torch.no_grad():
-#         for inputs, labels in test_dl_14:
-#             outputs = model_14(inputs.float())
-#             y_true.extend(labels.numpy())
-#             y_pred.extend(outputs.numpy().flatten())
-#     auc_14 = roc_auc_score(y_true, y_pred)
-#     auc_values_14.append(auc_14)  # Append AUC to the list
-#     print(f"Run {i+1}: AUC = {auc_14:.4f}")
+    # Evaluate the model
+    model_14.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for inputs, labels in test_dl_14:
+            outputs = model_14(inputs.float())
+            y_true.extend(labels.numpy())
+            y_pred.extend(outputs.numpy().flatten())
+    auc_14 = roc_auc_score(y_true, y_pred)
+    auc_values_14.append(auc_14)  # Append AUC to the list
+    print(f"Run {i+1}: AUC = {auc_14:.4f}")
 
-# # Calculate the average AUC
-# average_auc_14 = np.mean(auc_values_14)
-# print(f"\nAverage AUC: {average_auc_14:.4f}")
+# Calculate the average AUC
+average_auc_14 = np.mean(auc_values_14)
+print(f"\nAverage AUC: {average_auc_14:.4f}")
 
-# auc_std_dev_14 = np.std(auc_values_14)
-# print(f"Standard Deviation of AUC: {auc_std_dev_14:.4f}")
+auc_std_dev_14 = np.std(auc_values_14)
+print(f"Standard Deviation of AUC: {auc_std_dev_14:.4f}")
 
 
 # Run the app
