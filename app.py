@@ -20,73 +20,56 @@ import copy
 import streamlit as st
 import matplotlib.pyplot as plt
 
+# Set the random seed for reproducibility
+torch.manual_seed(0)
 def main():
     st.title("Fraud Detection in Financial Statements")
-    
+
+    # Data ingestion and preprocessing
     df = data_ingestion()
     df = data_preprocessing(df)
     df_filtered = df[(df['fyear'] >= 1990) & (df['fyear'] <= 2019)]
     
     st.header("1. Select Cutoff Year for Training and Testing Data")
-    cutoff_year = st.slider("Cutoff Year", min_value=1990, max_value=2019, value=2002, step=1, key="cutoff_year_slider")
+    cutoff_year = st.slider("Cutoff Year", min_value=1990, max_value=2019, value=st.session_state.get('cutoff_year', 2002), step=1)
 
     if st.button('Confirm Cutoff Year'):
-        st.markdown("---")
+        st.session_state['cutoff_year'] = cutoff_year
         plot_misstatements(df_filtered, cutoff_year)
-
-        # Split data based on the selected cutoff year
-        train_df = df_filtered[df_filtered['fyear'] <= cutoff_year]
-        test_df = df_filtered[df_filtered['fyear'] > cutoff_year]
         
+
+    if 'cutoff_year' in st.session_state:
+        train_df, test_df = split_data(df_filtered, st.session_state['cutoff_year'])
+        st.write(f"Training data shape: {train_df.shape}")
+        st.write(f"Testing data shape: {test_df.shape}")
         X_train, y_train = train_df.drop(['misstate'], axis=1), train_df['misstate']
         X_test, y_test = test_df.drop(['misstate'], axis=1), test_df['misstate']
-
-        # Check if the dataset is balanced before resampling
-        is_balanced_before = check_balance(y_train)
-        balance_message_before = "balanced" if is_balanced_before else "imbalanced"
-        st.write(f"The training dataset before resampling is {balance_message_before}.")
 
         st.header("2. Select the Resampling Strategy")
         resampling_strategy = st.radio(
             "Resampling Strategy",
             ('Random Under Sampling (RUS)', 'Random Over Sampling (ROS)'),
-            key="resampling_strategy_radio"
+            key="resampling_strategy"
         )
-        st.markdown("---")
 
-        # Proceed with resampling based on the selected strategy
-        if st.button('Apply Resampling'):
-            X_train_resampled, y_train_resampled, X_test, y_test = data_resampling(df_filtered, cutoff_year, resampling_strategy)
-            
-            # Store in session state for persistence
-            st.session_state['X_test'] = X_test
-            st.session_state['y_test'] = y_test
+        if st.button('Apply Resampling Strategy'):
+            # Make sure to correctly implement data_resampling to handle resampling based on the selected strategy
+            X_train_resampled, y_train_resampled, X_test, y_test = data_resampling(df, cutoff_year, resampling_strategy)
+            st.session_state['X_train_resampled'] = X_train_resampled
+            st.session_state['y_train_resampled'] = y_train_resampled
 
-            # Check if the dataset is balanced after resampling
-            is_balanced_after = check_balance(y_train_resampled)
-            balance_message_after = "balanced" if is_balanced_after else "imbalanced"
-            st.write(f"The training dataset after resampling is {balance_message_after}.")
-            
-            st.write(f"The resampled training dataset contains {X_train_resampled.shape[0]} samples.")
+        if 'X_train_resampled' in st.session_state and 'y_train_resampled' in st.session_state:
+            X_train_resampled = st.session_state['X_train_resampled']
+            y_train_resampled = st.session_state['y_train_resampled']
+            st.write(f"{X_train_resampled.shape[0]} samples in the resampled training set.")
+            st.write("Class balance:", check_balance(y_train_resampled))
 
             st.header("3. Financial Ratios and Raw Financial Items")
-            st.write("We will train three models using different sets of features:")
-            st.write("1. All 42 features")
-            st.write("2. 28 raw financial items")
-            st.write("3. 14 financial ratios")
-            st.markdown("---")
-
-            selected_model = st.radio("Select Model", ('All 42 Features', '28 Raw Financial Items', '14 Financial Ratios'), key="model_selection")
-
-            if selected_model == 'All 42 Features':
-                st.subheader('3.1. Model 1: All 42 Features')
-                st.write("We will train a model using all 42 features.")
-                st.write("This model will be trained using the resampled training dataset and evaluated using the testing dataset.")
-
-                # Split the resampled data into 42, 28, and 14 features
-                merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14, X_train_resampled, y_train_resampled, X_test, y_test = fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test)
-
-                # Save the datasets to CSV files
+            model_selection = st.radio(
+                "Select Model",
+                ('All 42 Features', '28 Raw Financial Items', '14 Financial Ratios'),
+                key="model_selection"
+            )
         
 @st.cache_data
 def data_ingestion():
@@ -125,6 +108,26 @@ def data_preprocessing(df):
     df = df.reindex(columns=desired_columns_order)
 
     return df
+
+@st.cache_data
+def split_data(df_filtered, cutoff_year):
+    """
+    Split the dataset into training and testing sets based on a cutoff year.
+    
+    Parameters:
+    - df_filtered: DataFrame containing the filtered data.
+    - cutoff_year: Integer representing the year to split the data on.
+    
+    Returns:
+    - train_df: DataFrame containing the training data.
+    - test_df: DataFrame containing the testing data.
+    """
+    # Split the DataFrame into training and testing based on the cutoff year
+    train_df = df_filtered[df_filtered['fyear'] <= cutoff_year]
+    test_df = df_filtered[df_filtered['fyear'] > cutoff_year]
+    
+    return train_df, test_df
+
 
 @st.cache_data
 def plot_misstatements(df, cutoff_year):
