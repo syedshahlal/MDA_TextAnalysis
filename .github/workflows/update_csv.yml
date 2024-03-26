@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - '**/*.py'
-      - '!**/data/**'  # Exclude data directory to prevent recursive runs
+      - '!**/dataset/**'  # Exclude data directory to prevent recursive runs
   schedule:
     - cron: '0 0 * * *'  # schedule to run daily
 
@@ -32,6 +32,6 @@ jobs:
         author_name: syedshahlal
         author_email: sr.shahlal@gmail.com
         message: 'Automatically update CSV files'
-        add: 'data/*'  # Specify the path to your CSV files
+        add: 'dataset/*'  # Specify the path to your CSV files
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
