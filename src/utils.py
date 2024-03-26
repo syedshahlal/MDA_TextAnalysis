@@ -68,4 +68,12 @@ def check_balance(y_train_resampled):
     return is_balanced
 
 
-
+def plot_auc(auc_values):
+    """Plot the AUC values."""
+    fig, ax = plt.subplots()
+    ax.plot(auc_values, marker='o', color='b')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('AUC')
+    ax.set_title('AUC Values')
+    st.pyplot(fig)
+    plt.clf()  # Clear the figure
