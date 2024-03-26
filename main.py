@@ -1,9 +1,9 @@
 import streamlit as st
 from src.data_ingestion import data_ingestion
 from src.data_preprocessing import data_preprocessing, split_data, data_resampling, fin_ratio
-from src.model import FraudDetectionMLP, run_training_evaluations
+from src.model import FraudDetectionMLP, run_training_evaluations, train_model, evaluate_model
 from src.dataset import prepare_train_dataset, prepare_test_dataset
-from src.utils import plot_misstatements,  check_balance
+from src.utils import plot_misstatements,  check_balance, plot_auc
 
 def main():
     st.title("Fraud Detection in Financial Statements")
@@ -73,14 +73,19 @@ def main():
                 train_dl = prepare_train_dataset(train_path)
                 test_dl = prepare_test_dataset(test_path)
 
-                
                 # Initialize the model with the correct number of input features
                 model = FraudDetectionMLP(num_features)
 
+                st.write(f"Trainset: {train_dl.dataset.X.shape} samples, Testset: {test_dl.dataset.X.shape} samples")
+                
+
                 # Assuming run_training_evaluations is adjusted to take DataLoader objects directly
-                average_auc = run_training_evaluations(model, train_dl, test_dl, num_features)
+                auc_values, average_auc, auc_std_dev = run_training_evaluations(model, train_dl, test_dl)
+                # average_auc = run_training_evaluations(train_dl, test_dl, num_features)
                 st.write(f"Average AUC: {average_auc:.4f}")
                 st.write(f"Standard Deviation of AUC: {auc_std_dev:.4f}")
+
+                plot_auc(auc_values)
  
 # Run the app
 if __name__ == "__main__":
