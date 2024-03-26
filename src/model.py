@@ -4,6 +4,9 @@ from torch.nn.init import kaiming_uniform_, xavier_uniform_
 from sklearn.metrics import roc_auc_score
 import numpy as np
 
+from src.dataset import prepare_train_dataset
+from torch.nn import Dropout
+
 
 class FraudDetectionMLP(Module):
     def __init__(self, n_inputs):
@@ -12,6 +15,7 @@ class FraudDetectionMLP(Module):
         self.hidden1 = Linear(n_inputs, 57)
         kaiming_uniform_(self.hidden1.weight, nonlinearity='relu')
         self.act1 = ReLU()
+        self.dropout1 = Dropout(0.1)
         # Second (hidden) layer
         self.hidden2 = Linear(57, 22)
         kaiming_uniform_(self.hidden2.weight, nonlinearity='relu')
@@ -37,6 +41,7 @@ class FraudDetectionMLP(Module):
         # Input to the first hidden layer
         X = self.hidden1(X)
         X = self.act1(X)
+        X = self.dropout1(X)
         # Second hidden layer
         X = self.hidden2(X)
         X = self.act2(X)
@@ -57,7 +62,7 @@ class FraudDetectionMLP(Module):
 def train_model(model, train_dl, num_epochs):
     # Define loss function and optimizer inside the function
     criterion = torch.nn.BCELoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     for epoch in range(num_epochs):
         model.train()
@@ -89,22 +94,33 @@ def evaluate_model(model, test_dl):
 
 
 
-def run_training_evaluations(train_dl, test_dl, input_features, num_runs=10, num_epochs=150):
+def run_training_evaluations(model, train_dl, test_dl):
     auc_values = []
-    for i in range(num_runs):
-        # Instantiate model with the correct number of input features
-        model = FraudDetectionMLP(input_features)
-        # Train the model
-        train_model(model, train_dl, num_epochs)
-        # Evaluate the model
-        auc = evaluate_model(model, test_dl)
-        auc_values.append(auc)
-        print(f"Run {i + 1}: AUC = {auc:.4f}")
 
-    # Calculate and print the average and standard deviation of AUC values
+    # Perform 10 training runs
+    for i in range(10):
+        # model = FraudDetectionMLP(num_features)
+        train_model(model, train_dl, num_epochs=20)
+
+        # Evaluate the model
+        model.eval()
+        y_true = []
+        y_pred = []
+        with torch.no_grad():
+            for inputs, labels in test_dl:
+                outputs = model(inputs.float())
+                y_true.extend(labels.numpy())
+                y_pred.extend(outputs.numpy().flatten())
+        auc = roc_auc_score(y_true, y_pred)
+        auc_values.append(auc)  # Append AUC to the list
+        print(f"Run {i+1}: AUC = {auc:.4f}")
+
+    # Calculate the average AUC
     average_auc = np.mean(auc_values)
-    auc_std_dev = np.std(auc_values)
     print(f"\nAverage AUC: {average_auc:.4f}")
+
+    # Calculate the std AUC
+    auc_std_dev = np.std(auc_values)
     print(f"Standard Deviation of AUC: {auc_std_dev:.4f}")
 
-    return average_auc, auc_std_dev
+    return auc_values, average_auc, auc_std_dev
