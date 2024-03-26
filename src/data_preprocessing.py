@@ -113,7 +113,10 @@ def fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test):
     merged_train_data_14 = pd.concat([X_train_resampled_14, y_train_resampled_14], axis=1)
     merged_test_data_14 = pd.concat([X_test_14, y_test_14], axis=1)
 
-    directory = r"D:\University\UB\Research_SEC\MDA_TextAnalysis\dataset"
+    directory = "./dataset"
+
+    if not os.path.exists(directory):
+     os.makedirs(directory)
 
     # Save CSV files
     merged_train_data.to_csv(os.path.join(directory, 'merged_train_data.csv'), index=False)
