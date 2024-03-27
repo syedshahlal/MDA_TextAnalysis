@@ -1,0 +1,37 @@
+name: Generate and Commit CSV Files
+
+on:
+  push:
+    paths:
+      - '**/*.py'
+      - '!**/dataset/**'  # Exclude data directory to prevent recursive runs
+  schedule:
+    - cron: '0 0 * * *'  # schedule to run daily
+
+jobs:
+  update-csv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        pip install pandas numpy scikit-learn imbalanced-learn streamlit
+
+    - name: Run script to update CSV files
+      run: python src/data_preprocessing.py  
+
+    - name: Commit & push changes
+      uses: EndBug/add-and-commit@v7
+      with:
+        author_name: syedshahlal
+        author_email: sr.shahlal@gmail.com
+        message: 'Automatically update CSV files'
+        add: 'dataset/*'  # Specify the path to your CSV files
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
