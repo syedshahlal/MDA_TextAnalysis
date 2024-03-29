@@ -8,4 +8,5 @@ torch
 lxml
 statsmodels
 streamlit
+PyDrive
 -e .
