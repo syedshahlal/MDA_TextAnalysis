@@ -22,12 +22,19 @@ class CSVDataset(Dataset):
     def __getitem__(self,idx):
         return [self.X[idx], self.y[idx]]
 
-def prepare_train_dataset(path):
-    train = CSVDataset(path)
-    train_dl = DataLoader(train, batch_size=1662, shuffle=True)
+    # Get the number of rows in the dataset
+    def __len__(self):
+        return len(self.X)
+    # Get a row at an index
+    def __getitem__(self,idx):
+        return [self.X[idx], self.y[idx]]
+
+def prepare_train_dataset(df):
+    train_ds = CSVDataset(df)
+    train_dl = DataLoader(train_ds, batch_size=1662, shuffle=True)
     return train_dl
 
-def prepare_test_dataset(path):
-    test = CSVDataset(path)
-    test_dl = DataLoader(test, batch_size=1024, shuffle=False)
+def prepare_test_dataset(df):
+    test_ds = CSVDataset(df)
+    test_dl = DataLoader(test_ds, batch_size=1024, shuffle=False)
     return test_dl
