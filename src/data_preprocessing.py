@@ -5,6 +5,25 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
 import os
 import streamlit as st
+import torch
+from src.model import FraudDetectionMLP
+
+def model_exists(num_features, model_dir="model"):
+    model_path = f"{model_dir}/fraud_detection_model_{num_features}_features.pth"
+    return os.path.isfile(model_path)
+
+def save_model(model, num_features, model_dir="model"):
+    model_path = f"{model_dir}/fraud_detection_model_{num_features}_features.pth"
+    torch.save(model.state_dict(), model_path)
+    print(f"Model with {num_features} features saved to {model_path}")
+
+def load_model(num_features, model_dir="model"):
+    model_path = f"{model_dir}/fraud_detection_model_{num_features}_features.pth"
+    model = FraudDetectionMLP(num_features)  # You need to initialize the model structure
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    return model
+
 
 @st.cache_data
 def data_preprocessing(df):
@@ -84,6 +103,7 @@ def data_resampling(df, cutoff_year, resampling_strategy):
 
     return X_train_resampled, y_train_resampled, X_test, y_test
 
+@st.cache_data
 def fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test):
     financial_ratios_14 = ['dch_wc', 'ch_rsst', 'dch_rec', 'dch_inv', 'soft_assets', 'ch_cs', 'ch_cm', 'ch_roa', 'bm',
                           'dpi', 'reoa', 'EBIT', 'ch_fcf', 'issue']
