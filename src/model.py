@@ -5,7 +5,8 @@ from sklearn.metrics import roc_auc_score
 import numpy as np
 
 from src.dataset import prepare_train_dataset
-from torch.nn import Dropout
+
+import os
 
 
 class FraudDetectionMLP(Module):
@@ -15,7 +16,7 @@ class FraudDetectionMLP(Module):
         self.hidden1 = Linear(n_inputs, 57)
         kaiming_uniform_(self.hidden1.weight, nonlinearity='relu')
         self.act1 = ReLU()
-        self.dropout1 = Dropout(0.1)
+        # self.dropout1 = Dropout(0.1)
         # Second (hidden) layer
         self.hidden2 = Linear(57, 22)
         kaiming_uniform_(self.hidden2.weight, nonlinearity='relu')
@@ -41,7 +42,7 @@ class FraudDetectionMLP(Module):
         # Input to the first hidden layer
         X = self.hidden1(X)
         X = self.act1(X)
-        X = self.dropout1(X)
+        # X = self.dropout1(X)
         # Second hidden layer
         X = self.hidden2(X)
         X = self.act2(X)
@@ -123,4 +124,11 @@ def run_training_evaluations(model, train_dl, test_dl):
     auc_std_dev = np.std(auc_values)
     print(f"Standard Deviation of AUC: {auc_std_dev:.4f}")
 
-    return auc_values, average_auc, auc_std_dev
+    metadata = {
+    'auc_values': auc_values,
+    'average_auc': average_auc,
+    'auc_std_dev': auc_std_dev
+}
+
+    return metadata
+
