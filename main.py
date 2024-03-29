@@ -1,9 +1,11 @@
 import streamlit as st
 from src.data_ingestion import data_ingestion
 from src.data_preprocessing import data_preprocessing, split_data, data_resampling, fin_ratio
-from src.model import FraudDetectionMLP, run_training_evaluations, train_model, evaluate_model
+from src.model import FraudDetectionMLP, run_training_evaluations
 from src.dataset import prepare_train_dataset, prepare_test_dataset
 from src.utils import plot_misstatements,  check_balance, plot_auc
+from src.model_utils import save_model, load_model, model_exists
+
 
 def main():
     st.title("Fraud Detection in Financial Statements")
@@ -58,14 +60,9 @@ def main():
             y_test = st.session_state['y_test']
 
             # Option to trigger training and evaluation
-            if st.button("Train and Evaluate Model"):
+            if st.button("Run model"):
                 # Determine the number of features based on the selection
                 num_features = 42 if model_selection == 'All 42 Features' else 28 if model_selection == '28 Raw Financial Items' else 14
-
-                # Use fin_ratio to prepare datasets according to the selection
-                merged_train_data, merged_test_data, merged_train_data_28, merged_test_data_28, merged_train_data_14, merged_test_data_14, _, _, _, _ = fin_ratio(X_train_resampled, y_train_resampled, X_test, y_test)
-                
-                # Select the correct dataset based on model selection
                 train_path = '/dataset/merged_train_data.csv' if model_selection == 'All 42 Features' else '/dataset/merged_train_data_28.csv' if model_selection == '28 Raw Financial Items' else '/dataset/merged_train_data_14.csv'
                 test_path = '/dataset/merged_test_data.csv' if model_selection == 'All 42 Features' else '/dataset/merged_test_data_28.csv' if model_selection == '28 Raw Financial Items' else '/dataset/merged_test_data_14.csv'
 
@@ -73,19 +70,37 @@ def main():
                 train_dl = prepare_train_dataset(train_path)
                 test_dl = prepare_test_dataset(test_path)
 
-                # Initialize the model with the correct number of input features
-                model = FraudDetectionMLP(num_features)
+                model_dir = r'D:\University\UB\Research_SEC\MDA_TextAnalysis\model'  # Replace with the actual directory path
+                if model_exists(num_features, model_dir):
+                    # Model exists, load the model and its metadata
+                    model, metadata = load_model(num_features, model_dir)
+                    st.write("Loaded pre-trained model.")
+                    
+                    # Accessing the metadata
+                    auc_values = metadata.get('auc_values', [])
+                    average_auc = metadata.get('average_auc')
+                    std_auc = metadata.get('std_auc')
+                    
+                    # Displaying the metadata
+                    st.write(f"Average AUC: {average_auc:.4f}")
+                    st.write(f"Standard Deviation of AUC: {std_auc:.4f}")
+                    plot_auc(auc_values)
 
-                st.write(f"Trainset: {train_dl.dataset.X.shape} samples, Testset: {test_dl.dataset.X.shape} samples")
+                else:
+                    # Model doesn't exist, proceed to train and save
+                    model = FraudDetectionMLP(num_features)
+
+                    st.write(f"Trainset: {train_dl.dataset.X.shape} samples, Testset: {test_dl.dataset.X.shape} samples")
                 
 
-                # Assuming run_training_evaluations is adjusted to take DataLoader objects directly
-                auc_values, average_auc, auc_std_dev = run_training_evaluations(model, train_dl, test_dl)
-                # average_auc = run_training_evaluations(train_dl, test_dl, num_features)
-                st.write(f"Average AUC: {average_auc:.4f}")
-                st.write(f"Standard Deviation of AUC: {auc_std_dev:.4f}")
-
-                plot_auc(auc_values)
+                    # Assuming run_training_evaluations is adjusted to take DataLoader objects directly
+                    metadata = run_training_evaluations(model, train_dl, test_dl)
+                    auc_values = metadata.get('auc_values', [])
+                    average_auc = metadata.get('average_auc', 0)
+                    auc_std_dev = metadata.get('auc_std_dev', 0)
+                    save_model(model, num_features, metadata, model_dir="model")
+                    st.write(f"Model trained. Average AUC: {average_auc:.4f}, Standard Deviation of AUC: {auc_std_dev:.4f}")
+                    plot_auc(auc_values)
  
 # Run the app
 if __name__ == "__main__":
