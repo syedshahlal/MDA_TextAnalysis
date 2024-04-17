@@ -78,8 +78,8 @@ def main():
                     
                     # Accessing the metadata
                     auc_values = metadata.get('auc_values', [])
-                    average_auc = metadata.get('average_auc')
-                    std_auc = metadata.get('std_auc')
+                    average_auc = metadata.get('average_auc', 0)
+                    std_auc = metadata.get('std_auc', 0)
                     
                     # Displaying the metadata
                     st.write(f"Average AUC: {average_auc:.4f}")
@@ -97,7 +97,7 @@ def main():
                     metadata = run_training_evaluations(model, train_dl, test_dl)
                     auc_values = metadata.get('auc_values', [])
                     average_auc = metadata.get('average_auc', 0)
-                    auc_std_dev = metadata.get('auc_std_dev', 0)
+                    auc_std_dev = metadata.get('auc_std_dev')
                     save_model(model, num_features, metadata, model_dir="model")
                     st.write(f"Model trained. Average AUC: {average_auc:.4f}, Standard Deviation of AUC: {auc_std_dev:.4f}")
                     plot_auc(auc_values)
