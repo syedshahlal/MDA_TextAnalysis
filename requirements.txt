@@ -8,5 +8,6 @@ torch
 lxml
 statsmodels
 streamlit
-PyDrive
+polars
+plotly
 -e .

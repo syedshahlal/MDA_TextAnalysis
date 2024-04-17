@@ -1,15 +1,17 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+import plotly.graph_objects as go
+import plotly.express as px
 
 @st.cache_data
-def plot_misstatements(df, cutoff_year):
-    # Ensure df is filtered for years from 1990 to 2019
-    filtered_df = df[(df['fyear'] >= 1990) & (df['fyear'] <= 2019)]
+def plot_misstatements(df, train_period, test_period):
+    # Ensure df is filtered for years within the given period
+    filtered_df = df[(df['fyear'] >= train_period[0]) & (df['fyear'] <= test_period[1])]
     
-    # Dynamically split based on the cutoff year
-    training_df = filtered_df[filtered_df['fyear'] <= cutoff_year]
-    testing_df = filtered_df[filtered_df['fyear'] > cutoff_year]
+    # Dynamically split based on the train_period and test_period
+    training_df = filtered_df[(filtered_df['fyear'] >= train_period[0]) & (filtered_df['fyear'] <= train_period[1])]
+    testing_df = filtered_df[(filtered_df['fyear'] >= test_period[0]) & (filtered_df['fyear'] <= test_period[1])]
 
     # Group by fiscal year and sum misstatements
     misstatements_by_fyear = filtered_df.groupby('fyear')['misstate'].sum()
@@ -20,44 +22,29 @@ def plot_misstatements(df, cutoff_year):
     total_misstatements = misstatements_by_fyear.sum()
     total_misstatements_training = misstatements_by_fyear_training.sum()
     total_misstatements_testing = misstatements_by_fyear_testing.sum()
+
+    colors = ['rgb(0, 88, 186)',  # Darker Blue
+              'rgb(229, 106, 81)']  # Red
     
-    # Create pie chart
-    fig1, ax1 = plt.subplots()
+    # Pie Chart
     labels = ['Training Data Misstatements', 'Testing Data Misstatements']
     sizes = [total_misstatements_training, total_misstatements_testing]
-    colors = ['#ff9999', '#66b3ff']
-    explode = (0.1, 0)  # explode the first slice
+    
+    fig1 = go.Figure(data=[go.Pie(labels=labels, values=sizes, pull=[0.1, 0], marker_colors=colors)])
+    fig1.update_traces(textinfo='value+percent', textfont_size=14, insidetextfont={'color': 'white', 'family': 'Arial Black', 'size': 14})
+    fig1.update_layout(title_text='Proportion of Misstatements: Training vs. Testing')
+    
+    st.plotly_chart(fig1)
 
-    # Custom autopct function to show both value and percentage
-    def autopct_format(values):
-        def my_format(pct):
-            total = sum(values)
-            val = int(round(pct*total/100.0))
-            return '{v:d} ({p:.2f}%)'.format(v=val, p=pct)
-        return my_format
+    # Bar Graph
+    fig2 = px.bar(x=misstatements_by_fyear.index, y=misstatements_by_fyear.values, labels={'x': 'Fiscal Year', 'y': 'Number of Misstatements'})
+    # Use train_period and test_period to add annotations for the training and testing periods
+    fig2.add_vrect(x0=train_period[0], x1=train_period[1], fillcolor="blue", opacity=0.1, line_width=0, annotation_text="Training Period", annotation_position="top left")
+    fig2.add_vrect(x0=test_period[0], x1=test_period[1], fillcolor="red", opacity=0.1, line_width=0, annotation_text="Testing Period", annotation_position="top right")
+    fig2.update_layout(title_text='Misstatements by Fiscal Year', xaxis_title='Fiscal Year', yaxis_title='Number of Misstatements')
+    fig2.update_xaxes(tickmode='linear', dtick=1)
 
-    ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct=autopct_format(sizes), shadow=True, startangle=90)
-    ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
-    plt.title('Proportion of Misstatements: Training vs. Testing')
-    st.pyplot(fig1) # Show pie chart
-
-    # Clear figure for next plot
-    plt.clf()
-
-    # Create bar graph for total misstatements by fiscal year
-    fig2, ax2 = plt.subplots()
-    misstatements_by_fyear = filtered_df.groupby('fyear')['misstate'].sum()
-    ax2.bar(misstatements_by_fyear.index, misstatements_by_fyear.values, color='skyblue')
-    ax2.axvline(x=cutoff_year, color='red', linestyle='--', label='Cutoff Year')  # Adjusting cutoff_year visualization
-    ax2.set_xlabel('Fiscal Year')
-    ax2.set_ylabel('Number of Misstatements')
-    ax2.set_title('Misstatements by Fiscal Year')
-
-    # Set the tick labels on the x-axis at a 45-degree angle
-    plt.xticks(rotation=45)
-
-    ax2.legend()
-    st.pyplot(fig2)
+    st.plotly_chart(fig2)
 
     return total_misstatements, total_misstatements_training, total_misstatements_testing
 
@@ -69,11 +56,16 @@ def check_balance(y_train_resampled):
 
 
 def plot_auc(auc_values):
-    """Plot the AUC values."""
-    fig, ax = plt.subplots()
-    ax.plot(auc_values, marker='o', color='b')
-    ax.set_xlabel('Run')
-    ax.set_ylabel('AUC')
-    ax.set_title('AUC Values')
-    st.pyplot(fig)
-    plt.clf()  # Clear the figure
+    """Plot the AUC values using Plotly."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=list(range(1, len(auc_values) + 1)), y=auc_values,
+                             mode='lines+markers', 
+                             marker=dict(color='red', size=10),
+                             line=dict(color='red')))
+    
+    fig.update_layout(title='AUC Values Over Trials',
+                      xaxis_title='Number of Trials',
+                      yaxis_title='AUC',
+                      template='plotly_white')
+    
+    st.plotly_chart(fig)
