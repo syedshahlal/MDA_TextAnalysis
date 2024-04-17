@@ -114,10 +114,10 @@ def main():
                     
                     # Displaying the metadata
                     st.write(f"Average AUC: {average_auc:.4f}")
-                    if std_auc is not None:
-                        st.write(f"Standard Deviation of AUC: {std_auc:.4f}")
-                    else:
-                        pass
+                    # if std_auc is not None:
+                    #     st.write(f"Standard Deviation of AUC: {std_auc:.4f}")
+                    # else:
+                    #     pass
                     plot_auc(auc_values)
 
                 else:

@@ -94,47 +94,13 @@ def main():
             if st.button("Run model"):
                 # Determine the number of features based on the selection
                 num_features = 42 if model_selection == 'All 42 Features' else 28 if model_selection == '28 Raw Financial Items' else 14
-                train_path = '/dataset/merged_train_data.csv' if model_selection == 'All 42 Features' else '/dataset/merged_train_data_28.csv' if model_selection == '28 Raw Financial Items' else '/dataset/merged_train_data_14.csv'
-                test_path = '/dataset/merged_test_data.csv' if model_selection == 'All 42 Features' else '/dataset/merged_test_data_28.csv' if model_selection == '28 Raw Financial Items' else '/dataset/merged_test_data_14.csv'
-
-                # # Prepare the DataLoader objects
-                # train_dl = prepare_train_dataset(train_path)
-                # test_dl = prepare_test_dataset(test_path)
-
-                model_dir = r'D:\University\UB\Research_SEC\MDA_TextAnalysis\model'  # Replace with the actual directory path
-                if model_exists(num_features, model_dir):
-                    # Model exists, load the model and its metadata
-                    model, metadata = load_model(num_features, model_dir)
-                    st.write("Loaded pre-trained model.")
-                    
-                    # Accessing the metadata
-                    auc_values = metadata.get('auc_values', [])
-                    average_auc = metadata.get('average_auc', 0)
-                    std_auc = metadata.get('std_auc', 0)
-                    
-                    # Displaying the metadata
-                    st.write(f"Average AUC: {average_auc:.4f}")
-                    # if std_auc is not None:
-                    #     st.write(f"Standard Deviation of AUC: {std_auc:.4f}")
-                    # else:
-                    #     pass
-                    plot_auc(auc_values)
-
+                # Replace with the actual directory path
+                if num_features == 42:
+                    st.image("https://github.com/syedshahlal/MDA_TextAnalysis/blob/main/results/42%20features.png?raw=true", caption='All 42 Features', use_column_width=True)
+                elif num_features == 28:
+                    st.image("https://github.com/syedshahlal/MDA_TextAnalysis/blob/main/results/28%20raw%20items.png?raw=true", caption='28 Raw Financial Items', use_column_width=True)
                 else:
-                    # Model doesn't exist, proceed to train and save
-                    model = FraudDetectionMLP(num_features)
-
-                    st.write(f"Trainset: {train_dl.dataset.X.shape} samples, Testset: {test_dl.dataset.X.shape} samples")
-                
-
-                    # Assuming run_training_evaluations is adjusted to take DataLoader objects directly
-                    metadata = run_training_evaluations(model, train_dl, test_dl)
-                    auc_values = metadata.get('auc_values', [])
-                    average_auc = metadata.get('average_auc', 0)
-                    auc_std_dev = metadata.get('auc_std_dev')
-                    save_model(model, num_features, metadata, model_dir="model")
-                    st.write(f"Model trained. Average AUC: {average_auc:.4f}, Standard Deviation of AUC: {auc_std_dev:.4f}")
-                    plot_auc(auc_values)
+                    st.image("https://github.com/syedshahlal/MDA_TextAnalysis/blob/main/results/14%20financial%20items.png?raw=true", caption='14 Financial Ratios', use_column_width=True)
  
 # Run the app
 if __name__ == "__main__":
