@@ -1,6 +1,6 @@
 import streamlit as st
 from src.data_ingestion import data_ingestion
-from src.data_preprocessing import data_preprocessing, split_data, data_resampling, fin_ratio
+from src.data_preprocessing import data_preprocessing, split_data, data_resampling
 from src.model import FraudDetectionMLP, run_training_evaluations
 from src.dataset import prepare_train_dataset, prepare_test_dataset
 from src.utils import plot_misstatements,  check_balance, plot_auc

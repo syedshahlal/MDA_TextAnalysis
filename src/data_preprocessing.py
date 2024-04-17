@@ -11,23 +11,6 @@ import torch
 from src.model import FraudDetectionMLP
 
 
-def model_exists(num_features, model_dir="model"):
-    model_path = f"{model_dir}/fraud_detection_model_{num_features}_features.pth"
-    return os.path.isfile(model_path)
-
-def save_model(model, num_features, model_dir="model"):
-    model_path = f"{model_dir}/fraud_detection_model_{num_features}_features.pth"
-    torch.save(model.state_dict(), model_path)
-    print(f"Model with {num_features} features saved to {model_path}")
-
-def load_model(num_features, model_dir="model"):
-    model_path = f"{model_dir}/fraud_detection_model_{num_features}_features.pth"
-    model = FraudDetectionMLP(num_features)  # You need to initialize the model structure
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
-    return model
-
-
 @st.cache_data
 def data_preprocessing(df):
     # preprocess the dataset
