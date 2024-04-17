@@ -101,7 +101,7 @@ def run_training_evaluations(model, train_dl, test_dl):
     # Perform 10 training runs
     for i in range(10):
         # model = FraudDetectionMLP(num_features)
-        train_model(model, train_dl, num_epochs=10)
+        train_model(model, train_dl, num_epochs=150)
 
         # Evaluate the model
         model.eval()
