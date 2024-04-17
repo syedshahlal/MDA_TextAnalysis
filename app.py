@@ -97,9 +97,9 @@ def main():
                 train_path = '/dataset/merged_train_data.csv' if model_selection == 'All 42 Features' else '/dataset/merged_train_data_28.csv' if model_selection == '28 Raw Financial Items' else '/dataset/merged_train_data_14.csv'
                 test_path = '/dataset/merged_test_data.csv' if model_selection == 'All 42 Features' else '/dataset/merged_test_data_28.csv' if model_selection == '28 Raw Financial Items' else '/dataset/merged_test_data_14.csv'
 
-                # Prepare the DataLoader objects
-                train_dl = prepare_train_dataset(train_path)
-                test_dl = prepare_test_dataset(test_path)
+                # # Prepare the DataLoader objects
+                # train_dl = prepare_train_dataset(train_path)
+                # test_dl = prepare_test_dataset(test_path)
 
                 model_dir = r'D:\University\UB\Research_SEC\MDA_TextAnalysis\model'  # Replace with the actual directory path
                 if model_exists(num_features, model_dir):
